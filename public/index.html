@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@300..700&family=Varela+Round&display=swap"
+        rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1d1d1d;
+            color: #fff;
+        }
+
+        .nav {
+            margin: 15px 0 0 0;
+            font-size: 55px;
+            color: #fff;
+            font-family: "Teko", sans-serif;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .line {
+            height: 2px;
+            background-color: #fff;
+            width: 95%;
+            display: flex;
+            border-radius: 10px;
+            margin: auto;
+        }
+
+        .main {
+            margin: 25px;
+            display: flex;
+            width: 95%;
+            flex-wrap: wrap;
+        }
+
+        .main .video {
+            width: 60%;
+            background-color: #1e1e1e;
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+        }
+
+        .main .call {
+            width: 30%;
+            margin: auto;
+        }
+
+        .main .call #localVideo {
+            width: 100%;
+            margin: auto;
+            margin-top: 50px;
+            display: flex;
+        }
+
+        .main .call #remoteVideo {
+            width: 100%;
+            margin: auto;
+            display: flex;
+        }
+
+        .main .video #player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .main #videoForm {
+            width: 100%;
+            display: flex;
+            margin: auto;
+        }
+
+        .main #videoForm .buttons {
+            width: 30%;
+            display: flex;
+            justify-content: space-between;
+            margin: auto;
+        }
+
+        .main #videoForm .buttons button {
+            width: 48%;
+            height: 30px;
+            font-family: sans-serif;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            border: none;
+        }
+
+        .main #videoForm .buttons button:nth-child(1) {
+            background-color: rgb(250, 0, 0);
+            ;
+        }
+
+        .main #videoForm .buttons button:nth-child(1):hover {
+            background-color: rgb(200, 0, 0);
+        }
+
+        .main #videoForm .buttons button:nth-child(2) {
+            background-color: rgb(0, 200, 0);
+        }
+
+        .main #videoForm .buttons button:nth-child(2):hover {
+            background-color: rgb(0, 150, 0);
+        }
+
+        .main form {
+            display: flex;
+            width: 60%;
+        }
+
+        .main form input[type=text] {
+            width: 100%;
+            font-family: sans-serif;
+            font-size: 18px;
+            border: none;
+            padding: 2px;
+        }
+
+        .main form button {
+            width: 90px;
+            font-family: sans-serif;
+            font-size: 18px;
+            background-color: #007fff;
+            border: none;
+            margin-left: 10px;
+            cursor: pointer;
+            padding: 2px;
+            color: #fff;
+        }
+
+        .main form button:hover {
+            background-color: #005fff;
+        }
+
+        .footer {
+            margin: 20px;
+            text-align: center;
+            font-size: 25px;
+            font-family: sans-serif;
+            font-weight: 600;
+        }
+
+        .footer a {
+            text-decoration: none;
+            color: #007fff;
+        }
+
+        @media screen and (max-width:800px) {
+            .nav{
+                font-size: 35px;
+            }
+            .main .video {
+                width: 100%;
+            }
+
+            .main {
+                margin: 20px auto;
+            }
+
+            .main .call {
+                width: 100%;
+                margin: 20px 0;
+                display: flex;
+            }
+
+            .main .call #localVideo {
+                width: 48%;
+                margin-top: 0;
+            }
+
+            .main .call #remoteVideo {
+                width: 48%;
+            }
+
+            .main #videoForm .buttons{
+                margin-left: 8%;
+            }
+        }
+    </style>
+    <title>Prabhunath's Watchparty</title>
+</head>
+
+<body>
+    <div class="nav">
+        Prabhunath's Watchparty
+    </div>
+    <div class="line"></div>
+    <div class="main">
+        <div class="video">
+            <div id="player"></div>
+        </div>
+        <div class="call">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <video id="localVideo" autoplay muted playsinline></video>
+        </div>
+        <div id="videoForm">
+            <form action="#">
+                <input type="text" name="videoUrl" id="videoUrl" placeholder="Enter YouTube URL">
+                <button type="submit">Enter</button>
+            </form>
+            <div class="buttons">
+                <button id="startButton">Start</button>
+                <button id="callButton" disabled>Call</button>
+            </div>
+        </div>
+    </div>
+    <div class="line"></div>
+    <div class="footer">
+        Made by <a href="#">@prabhuu.nath</a>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        const socket = io();
+
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const startButton = document.getElementById('startButton');
+        const callButton = document.getElementById('callButton');
+        const seekBar = document.getElementById('seekBar');
+
+        let localStream;
+        let peerConnection;
+        let player;
+
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' }
+            ]
+        };
+
+        startButton.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                handleSuccess(stream);
+            } catch (err) {
+                handleError(err);
+            }
+        });
+
+        callButton.addEventListener('click', async () => {
+            if (!localStream) {
+                alert('Please start your camera first.');
+                return;
+            }
+
+            peerConnection = new RTCPeerConnection(configuration);
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('candidate', event.candidate);
+                }
+            };
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+            };
+
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('offer', offer);
+        });
+
+        socket.on('offer', async (offer) => {
+            if (!peerConnection) {
+                peerConnection = new RTCPeerConnection(configuration);
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit('candidate', event.candidate);
+                    }
+                };
+                peerConnection.ontrack = (event) => {
+                    remoteVideo.srcObject = event.streams[0];
+                };
+
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', answer);
+        });
+
+        socket.on('answer', async (answer) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on('candidate', async (candidate) => {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        function handleSuccess(stream) {
+            localStream = stream;
+            localVideo.srcObject = stream;
+            callButton.disabled = false;
+            startButton.disabled = true;
+        }
+
+        function handleError(error) {
+            console.error('Error accessing media devices.', error);
+            let errorMessage = 'An error occurred while accessing media devices: ';
+
+            switch (error.name) {
+                case 'NotAllowedError':
+                    errorMessage += 'Permissions have not been granted for the camera and microphone. Please allow access.';
+                    break;
+                case 'NotFoundError':
+                    errorMessage += 'No camera or microphone found. Please ensure they are connected and enabled.';
+                    break;
+                case 'NotReadableError':
+                    errorMessage += 'Could not access your camera and/or microphone. It might be in use by another application.';
+                    break;
+                default:
+                    errorMessage += error.message;
+                    break;
+            }
+
+            alert(errorMessage);
+        }
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '440',
+                width: '720',
+                display: 'flex',
+                margin: 'auto',
+                videoId: '', // Initially empty, will be set via form
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            seekBar.max = player.getDuration();
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                syncTime();
+                intervalId = setInterval(syncTime, 1000);  // Synchronize every second
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                clearInterval(intervalId);
+                socket.emit('pause');
+            }
+        }
+
+        function syncTime() {
+            let currentTime = player.getCurrentTime();
+            socket.emit('sync', { time: currentTime });
+        }
+
+        socket.on('play', (data) => {
+            player.seekTo(data.time, true);
+            player.playVideo();
+        });
+
+        socket.on('pause', () => {
+            player.pauseVideo();
+        });
+
+        socket.on('seek', (time) => {
+            player.seekTo(time, true);
+        });
+
+        socket.on('changeVideo', (videoId) => {
+            player.loadVideoById(videoId);
+        });
+
+        document.getElementById('videoForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const url = document.getElementById('videoUrl').value;
+            const videoId = getYouTubeVideoId(url);
+            if (videoId) {
+                player.loadVideoById(videoId);
+                socket.emit('changeVideo', videoId);
+            } else {
+                alert('Invalid YouTube URL');
+            }
+        });
+
+        function playVideo() {
+            player.playVideo();
+        }
+
+        function pauseVideo() {
+            player.pauseVideo();
+        }
+
+        function seekVideo() {
+            let time = seekBar.value;
+            player.seekTo(time, true);
+            socket.emit('seek', time);
+        }
+
+        function getYouTubeVideoId(url) {
+            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[7].length == 11) ? match[7] : null;
+        }
+
+        setInterval(() => {
+            if (player && player.getCurrentTime) {
+                seekBar.value = player.getCurrentTime();
+            }
+        });
+    </script>
+</body>
+
+</html>
